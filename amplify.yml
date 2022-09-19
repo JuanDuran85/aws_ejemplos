@@ -6,7 +6,7 @@ frontend:
       commands: []
   artifacts:
     # IMPORTANT - Please verify your build output directory
-    baseDirectory: /ejemplo3_lambda
+    baseDirectory: /ejemplo5
     files:
       - '**/*'
   cache:
