@@ -5,3 +5,5 @@ Implementando AWS - Ejemplos
 2. Lambda - Python
 3. Lambda - JS
 4. Lambda - Python
+5. Web
+6. Lambda - TS
