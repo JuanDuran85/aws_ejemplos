@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+      "target": "es2017",
+      "module": "commonjs",
+      "outDir": "./dist",
+      "strict": true,
+      "baseUrl": "./",
+      "esModuleInterop": true,
+      "inlineSourceMap": true,
+      "noImplicitAny": true,
+      "emitDecoratorMetadata": true,
+      "experimentalDecorators": true,
+      "strictPropertyInitialization": false,
+      "suppressImplicitAnyIndexErrors": true,
+      "typeRoots": [ "node_modules/@types" ]
+    }
+  }
