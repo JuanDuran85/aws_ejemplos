@@ -1,13 +1,13 @@
-import AWS from 'aws-sdk';
+import { S3,SSM } from 'aws-sdk';
 import { getEnvironmentVariable } from '../utils';
 
 const regionAws: string | undefined = getEnvironmentVariable('AWS_REGION');
 
-const s3 = new AWS.S3({
+const s3 = new S3({
     region: regionAws,
 });
 
-const ssm = new AWS.SSM({
+const ssm = new SSM({
     region: regionAws,
 });
 
@@ -70,7 +70,7 @@ const handleData = (dataIn: any) => {
     if (dataIn.Payload){
         dataIn.Payload.on('data', (event: any) => {
               if (event.Records) {
-                  console.log(event.Records.Payload.toString());
+                  console.info(event.Records.Payload.toString());
               }
           });
     }else{
