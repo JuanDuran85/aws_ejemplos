@@ -7,3 +7,5 @@ Implementando AWS - Ejemplos
 4. Lambda - Python
 5. Web
 6. Lambda - TS
+7. S3 - JS
+8. S3 - Python
