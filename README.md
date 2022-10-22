@@ -9,3 +9,9 @@ Implementando AWS - Ejemplos
 6. Lambda - TS
 7. S3 - JS
 8. S3 - Python
+
+
+Using CDK
+```bash
+cdk init app --language typescript
+```
