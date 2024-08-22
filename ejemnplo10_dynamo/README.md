@@ -168,3 +168,160 @@
     2. --max-items : If we want to limit the number of items 
     3. --scan-index-forward : If we want to order items in ascending order of the sort key
     4. --no-scan-index-forward : If we want to order items in descending order of the sort key
+
+### DynamoDB - Deleting Data with DeleteItem
+
+  - Deletes a single item in a table by primary key. You can perform a conditional delete operation that deletes the item if it exists, or if it has an expected attribute value.
+  - In addition to deleting an item, you can also return the item's attribute values in the same operation, using the ReturnValues parameter.
+  - Unless you specify conditions, the DeleteItem is an idempotent operation; running it multiple times on the same item or attribute does not result in an error response.
+  - Conditional deletes are useful for deleting items only if specific conditions are met. If those conditions are met, DynamoDB performs the delete. Otherwise, the item is not deleted.
+
+```bash
+    aws dynamodb delete-item \
+        --table-name MyTable \
+        --key '{ "ID": { "S": "John Doe" } }' \
+        --update-expression "SET Email = :newEmail" \
+        --condition-expression "Email = :oldEmail" \
+        --expression-attribute-values '{
+            ":oldEmail": { "S": "Pq5h8@example.com" },
+            ":newEmail": { "S": "Pq5h8@example.com" }
+        }' \
+        --return-consumed-capacity 'TOTAL'
+```
+
+### DynamoDB - Transaction write operations
+
+  - TransactWriteItems is a synchronous write operation that groups up to 100 action requests. These actions can target items in different tables, but not in different Amazon Web Services accounts or Regions, and no two actions can target the same item.
+  - The aggregate size of the items in the transaction cannot exceed 4 MB.
+  - The actions are completed atomically so that either all of them succeed, or all of them fail. They are defined by the following objects: Put, update, Delete, and Condition.
+  - When are some good times to use transactions?:
+    - Maintaining uniqueness on multiple attributes
+    - Handling counts and preventing duplicates
+    - Authorizing a user to perform a certain action
+    
+  - DynamoDB rejects the entire TransactWriteItems request if any of the following is true:
+    - A condition in one of the condition expressions is not met.
+    - An ongoing operation is in the process of updating the same item.
+    - There is insufficient provisioned capacity for the transaction to be completed.
+    - An item size becomes too large (bigger than 400 KB), a local secondary index (LSI) becomes too large, or a similar validation error occurs because of changes made by the transaction.
+    - The aggregate size of the items in the transaction exceeds 4 MB.
+    There is a user error, such as an invalid data format.
+
+```bash
+    aws dynamodb transact-write-items --client-request-token TRANSACTION1 --transact-items '[
+        {
+            "Put": {
+                "TableName": "MyTable",
+                "Item": {
+                    "ID": { "S": "John Doe" },
+                    "Email": { "S": "qQp6U@example.com" }
+                }
+            }
+        },
+        {
+            "Update": {
+                "TableName": "MyTable",
+                "Key": {
+                    "ID": { "S": "John Doe" }
+                },
+                "UpdateExpression": "SET Email = :newEmail",
+                "ExpressionAttributeValues": {
+                    ":newEmail": { "S": "newEmail@example.com" }
+                }
+            }
+        }
+    ]'
+```
+
+### DynamoDB - Transaction read operations
+
+  - TransactGetItems is a synchronous operation that atomically retrieves multiple items from one or more tables (but not from indexes) in a single account and Region. 
+  - A TransactGetItems call can contain up to 100 TransactGetItem objects, each of which contains a Get structure that specifies an item to retrieve from a table in the account and Region. 
+  - A call to TransactGetItems cannot retrieve items from tables in more than one Amazon Web Services account or Region. 
+  - The aggregate size of the items in the transaction cannot exceed 4 MB.
+  
+  - DynamoDB rejects the entire TransactGetItems request if any of the following is true:
+    - A conflicting operation is in the process of updating an item to be read.
+    - There is insufficient provisioned capacity for the transaction to be completed.
+    - There is a user error, such as an invalid data format.
+    - The aggregate size of the items in the transaction exceeded 4 MB.
+
+```bash
+    aws dynamodb transact-get-items --transact-items '[
+        {
+            "Get": {
+                "TableName": "MyTable",
+                "Key": {
+                    "ID": { "S": "John Doe" }
+                },
+                "ProjectionExpression": "Name, Email",
+                "ExpressionAttributeNames": { "#name": "Name" }
+            }
+        }
+    ]'
+```
+
+### DynamoDB - Global Secondary Indexes
+
+  - If we wanted to look for items based on non-key attributes we had to do a full table scan and use filter conditions to find what we wanted, which would be both very slow and very expensive for systems operating at large scale.
+  - Some applications might need to perform many kinds of queries, using a variety of different attributes as query criteria. To support these requirements, you can create one or more global secondary indexes and issue Query requests against these indexes in Amazon DynamoDB.
+  - DynamoDB provides a feature called Global Secondary Indexes (GSIs) which will automatically pivot your data around different Partition and Sort Keys. Data can be re-grouped and re-sorted to allow for more access patterns to be quickly served with the Query and Scan APIs.
+  - GSIs can be created and removed at any time, even if the table has data in it already! This new GSI will use the PostedBy attribute as the Partition (HASH) key and we will still keep the messages sorted by some attribute as the Sort key. We want all the attributes from the table copied (projected) into the GSI so we will use the ALL ProjectionType.
+  - It can take a little time while DynamoDB creates the GSI and backfills data from the table into the index. We can watch this from the command line and wait until the IndexStatus goes ACTIVE.
+
+```bash
+    aws dynamodb update-table \
+        --table-name MyTable \
+        --attribute-definitions AttributeName=PostedBy,AttributeType=S AttributeName=ID,AttributeType=S \
+        --global-secondary-index-updates '[{
+            "Create": {
+                "IndexName": "PostedByIndex-gsi",
+                "KeySchema": [{
+                    "AttributeName": "PostedBy",
+                    "KeyType": "HASH"
+                }, {
+                    "AttributeName": "ID",
+                    "KeyType": "RANGE"
+                }],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": 10,
+                    "WriteCapacityUnits": 5
+                }
+            }
+        }
+    ]'
+```
+
+```bash
+#Get initial status
+aws dynamodb describe-table --table-name MyTable --query "Table.GlobalSecondaryIndexes[0].IndexStatus"
+#Watch the status with the wait command (use Ctrl+C to exit):
+watch -n 5 "aws dynamodb describe-table --table-name MyTable --query "Table.GlobalSecondaryIndexes[0].IndexStatus""
+```
+
+  - Running a query on a GSI is no different than running it against a table, except we also need to specify which GSI to use with the --index-name option and we'll use the GSI key attributes in the KeyConditionExpression.
+```bash	
+    aws dynamodb query \
+        --table-name MyTable \
+        --key-condition-expression "PostedBy = :postedBy" \
+        --expression-attribute-values '{ ":postedBy": { "S": "John Doe" } }' \
+        --index-name PostedByIndex-gsi \
+        --return-consumed-capacity TOTAL
+```
+
+  - When you are done with a GSI you can remove it with the --global-secondary-index-name option.
+
+```bash
+    aws dynamodb update-table \
+        --table-name MyTable \
+        --global-secondary-index-updates '[{
+            "Delete": {
+                "IndexName": "PostedByIndex-gsi"
+            }
+        }
+    ]'
+```
+
