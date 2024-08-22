@@ -325,3 +325,10 @@ watch -n 5 "aws dynamodb describe-table --table-name MyTable --query "Table.Glob
     ]'
 ```
 
+### DynamoDB - Backup, Remove and Restore
+  
+  - First, let’s understand some AWS Backup terminology:
+    - Backup vault: a container that you organize your backups in.
+    - Backup plan: a policy expression that defines when and how you want to back up your AWS resources. The backup plan is attached to a backup vault.
+    - Resource assignment: defines which resources should be backed up. You can select resources by tags or by resource ARN.
+    - Recovery point: a snapshot/backup of a resource backed up by AWS Backup. Each recovery point can be restored with AWS Backup.
